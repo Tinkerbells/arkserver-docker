@@ -61,6 +61,8 @@ services:
       - am_ark_DisableStructurePlacementCollision=${ARK_DISABLE_STRUCTURE_PLACEMENT_COLLISION:-true}
       - am_ark_AlwaysAllowStructurePickup=${ARK_ALWAYS_ALLOW_STRUCTURE_PICKUP:-true}
       - am_ark_ShowMapPlayerLocation=${ARK_SHOW_MAP_PLAYER_LOCATION:-true}
+      - am_ark_ShowFloatingDamageText=${ARK_SHOW_FLOATING_DAMAGE_TEXT:-true}
+      - am_ark_ServerCrosshair=${ARK_SERVER_CROSSHAIR:-true}
       
       # Кластер
       - ARKCLUSTER=${ARK_CLUSTER_ENABLED:-false}
