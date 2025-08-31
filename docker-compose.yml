@@ -1,0 +1,321 @@
+version: '3.8'
+
+services:
+  # Простой одиночный ARK сервер
+  ark-server:
+    image: drpsychick/arkserver:latest
+    container_name: ark-${ARK_SERVER_MAP:-theisland}
+    restart: unless-stopped
+    
+    ports:
+      - "27015:27015"
+      - "27015:27015/udp"
+      - "7777:7777"
+      - "7777:7777/udp"
+      - "7778:7778"
+      - "7778:7778/udp"
+      - "32330:32330"
+    
+    volumes:
+      - steam_data:/home/steam/.steam/steamapps
+      - ark_server:/ark
+      # Опционально для конфигов на хосте:
+      # - ./ark-config:/ark/config
+      # - ./ark-backups:/ark/backup
+      # - ./ark-logs:/ark/log
+    
+    environment:
+      # Основные настройки сервера
+      - am_ark_SessionName=${ARK_SESSION_NAME:-My ARK Server}
+      - am_serverMap=${ARK_SERVER_MAP:-Fjordur}
+      - am_ark_ServerAdminPassword=${ARK_ADMIN_PASSWORD:-k3yb04rdc4t}
+      - am_ark_ServerPassword=${ARK_SERVER_PASSWORD:-}
+      - am_ark_MaxPlayers=${ARK_MAX_PLAYERS:-20}
+      
+      # Порты
+      - am_ark_QueryPort=${ARK_QUERY_PORT:-27015}
+      - am_ark_Port=${ARK_GAME_PORT:-7778}
+      - am_ark_RCONPort=${ARK_RCON_PORT:-32330}
+      
+      # Настройки обновлений и резервных копий
+      - am_arkAutoUpdateOnStart=${ARK_AUTO_UPDATE_ON_START:-true}
+      - am_arkwarnminutes=${ARK_WARN_MINUTES:-15}
+      - BACKUP_ONSTART=${ARK_BACKUP_ON_START:-false}
+      - VALIDATE_SAVE_EXISTS=${ARK_VALIDATE_SAVE_EXISTS:-false}
+      
+      # Моды
+      - am_ark_GameModIds=${ARK_GAME_MOD_IDS:-}
+      
+      # Дополнительные настройки
+      - am_ark_AltSaveDirectoryName=${ARK_ALT_SAVE_DIRECTORY_NAME:-SavedArks}
+      - LOG_RCONCHAT=${ARK_LOG_RCON_CHAT:-0}
+      - am_arkflag_crossplay=${ARK_FLAG_CROSSPLAY:-false}
+      
+      # Игровые множители
+      - am_ark_XPMultiplier=${ARK_XP_MULTIPLIER:-5.0}
+      - am_ark_EnablePVEGamma=${ARK_ENABLE_PVE_GAMMA:-true}
+      - am_ark_EnablePVPGamma=${ARK_ENABLE_PVP_GAMMA:-true}
+      - am_ark_AllowCaveBuildingPvE=${ARK_ALLOW_CAVE_BUILDING_PVE:-true}
+      - am_ark_DifficultyOffset=${ARK_DIFFICULTY_OFFSET:-1}
+      - am_ark_NightTimeSpeedScale=${ARK_NIGHT_TIME_SPEED_SCALE:-2.0}
+      - am_ark_TamingSpeedMultiplier=${ARK_TAMING_SPEED_MULTIPLIER:-5.0}
+      - am_ark_HarvestAmountMultiplier=${ARK_HARVEST_AMOUNT_MULTIPLIER:-3.0}
+      - am_ark_MatingSpeedMultiplier=${ARK_MATING_SPEED_MULTIPLIER:-5.0}
+      - am_ark_EggHatchSpeedMultiplier=${ARK_EGG_HATCH_SPEED_MULTIPLIER:-5.0}
+      - am_ark_BabyMatureSpeedMultiplier=${ARK_BABY_MATURE_SPEED_MULTIPLIER:-5.0}
+      - am_ark_BabyImprintAmountMultiplier=${ARK_BABY_IMPRINT_AMOUNT_MULTIPLIER:-4.0}
+      - am_ark_DinoHarvestingDamageMultiplier=${ARK_DINO_HARVESTING_DAMAGE_MULTIPLIER:-3.0}
+      - am_ark_DinoCharacterFoodDrainMultiplier=${ARK_DINO_CHARACTER_FOOD_DRAIN_MULTIPLIER:-2.0}
+      - am_ark_DisableStructurePlacementCollision=${ARK_DISABLE_STRUCTURE_PLACEMENT_COLLISION:-true}
+      - am_ark_AllowFlyerSpeedLeveling=${ARK_ALLOW_FLYER_SPEED_LEVELING:-true}
+      - am_ark_AllowSpeedLeveling=${ARK_ALLOW_FLYER_SPEED_LEVELING:-true}
+      - am_ark_LayEggIntervalMultiplier=${ARK_LAY_EGG_INTERVAL_MULTIPLIER:-0.5}
+      - am_ark_ResourcesRespawnPeriodMultiplier=${ARK_RESOURCES_RESPAWN_PERIOD_MULTIPLIER:-0.25}
+      - am_ark_SupplyCrateLootQualityMultiplier=${ARK_SUPPLY_CRATE_LOOT_QUALITY_MULTIPLIE:-3.0}
+      - am_ark_FishingLootQualityMultiplier=${ARK_FISHING_LOOT_QUALITY_MULTIPLIER:-3.0}
+      - am_ark_ShowFloatingDamageText=${ARK_SHOW_FLOATING_DAMAGE_TEXT:-true}
+      - am_ark_CropGrowthSpeedMultiplier=${ARK_CROP_GROWTH_SPEED_MULTIPLIER:-5.0}
+      - am_ark_BabyFoodConsumptionSpeedMultiplier=${ARK_BABY_FOOD_CONSUMPTION_SPEED_MULTIPLIER:-0.25}
+      - am_ark_GlobalItemDecompositionTimeMultiplier=${ARK_GLOBAL_TIME_DECOMPOSITION_TIME_MULTIPLIER:-3.0}
+      - am_ark_GlobalCorpseDecompositionTimeMultiplier=${ARK_GLOBAL_CORPSE_TIME_DECOMPOSITION_TIME_MULTIPLIER:-3.0}
+      - am_ark_AlwaysAllowStructurePickup=${ARK_ALWAYS_ALLOW_STRUCTURE_PICKUP:-true}
+      - am_ark_ShowMapPlayerLocation=${ARK_SHOW_MAP_PLAYER_LOCATION:-true}
+      - am_ark_ItemStackSizeMultiplier=${ARK_ITEM_STACK_SIZE_MULTIPLIER:-3.0}
+      - am_ark_EnableCryoSicknessPVE=${ARK_ENABLE_CRYO_SICKNESS_PVE:-false}
+
+      
+      # Кластер
+      - ARKCLUSTER=${ARK_CLUSTER_ENABLED:-false}
+      - am_arkopt_clusterid=${ARK_CLUSTER_ID:-}
+    
+    deploy:
+      resources:
+        limits:
+          memory: ${DOCKER_MEMORY_LIMIT:-8g}
+          cpus: '${DOCKER_CPU_LIMIT:-4}'
+        reservations:
+          memory: 4g
+          cpus: '2'
+
+  # ==========================================
+  # КЛАСТЕР СЕРВЕРОВ
+  # ==========================================
+  
+  # Первый сервер кластера - The Island
+  ark-cluster-theisland:
+    image: drpsychick/arkserver:latest
+    container_name: ark-cluster-theisland
+    restart: unless-stopped
+    profiles: ["cluster"]
+    
+    ports:
+      - "27015:27015"
+      - "27015:27015/udp"
+      - "7777:7777"
+      - "7777:7777/udp"
+      - "7778:7778"
+      - "7778:7778/udp"
+      - "32330:32330"
+    
+    volumes:
+      - steam_data:/home/steam/.steam/steamapps
+      - ark_theisland:/ark
+      - ark_theisland_saved:/arkserver/ShooterGame/Saved
+      - ark_clusters:/arkserver/ShooterGame/Saved/clusters
+      - ark_server_shared:/arkserver
+    
+    environment:
+      - am_ark_SessionName=${ARK_SESSION_NAME:-ARK Cluster} - The Island
+      - am_serverMap=TheIsland
+      - am_ark_ServerAdminPassword=${ARK_ADMIN_PASSWORD:-k3yb04rdc4t}
+      - am_ark_ServerPassword=${ARK_SERVER_PASSWORD:-}
+      - am_ark_MaxPlayers=${ARK_MAX_PLAYERS:-10}
+      - am_ark_QueryPort=27015
+      - am_ark_Port=7778
+      - am_ark_RCONPort=32330
+      - am_arkAutoUpdateOnStart=true
+      - am_arkwarnminutes=${ARK_WARN_MINUTES:-15}
+      - ARKCLUSTER=true
+      - am_arkopt_clusterid=${ARK_CLUSTER_ID:-MyGameCluster}
+      - ARKSERVER_SHARED=/arkserver
+      - am_ark_GameModIds=${ARK_GAME_MOD_IDS:-}
+      
+      # Игровые множители
+      - am_ark_XPMultiplier=${ARK_XP_MULTIPLIER:-1.0}
+      - am_ark_EnablePVEGamma=${ARK_ENABLE_PVE_GAMMA:-true}
+      - am_ark_EnablePVPGamma=${ARK_ENABLE_PVP_GAMMA:-true}
+      - am_ark_AllowCaveBuildingPvE=${ARK_ALLOW_CAVE_BUILDING_PVE:-true}
+      - am_ark_DifficultyOffset=${ARK_DIFFICULTY_OFFSET:-1}
+      - am_ark_NightTimeSpeedScale=${ARK_NIGHT_TIME_SPEED_SCALE:-1.0}
+      - am_ark_TamingSpeedMultiplier=${ARK_TAMING_SPEED_MULTIPLIER:-1.0}
+      - am_ark_HarvestAmountMultiplier=${ARK_HARVEST_AMOUNT_MULTIPLIER:-1.0}
+      - am_ark_MatingSpeedMultiplier=${ARK_MATING_SPEED_MULTIPLIER:-1.0}
+      - am_ark_EggHatchSpeedMultiplier=${ARK_EGG_HATCH_SPEED_MULTIPLIER:-1.0}
+      - am_ark_BabyMatureSpeedMultiplier=${ARK_BABY_MATURE_SPEED_MULTIPLIER:-1.0}
+      
+    deploy:
+      resources:
+        limits:
+          memory: ${DOCKER_MEMORY_LIMIT:-8g}
+          cpus: '${DOCKER_CPU_LIMIT:-4}'
+
+  # Второй сервер кластера - Ragnarok
+  ark-cluster-ragnarok:
+    image: drpsychick/arkserver:latest
+    container_name: ark-cluster-ragnarok
+    restart: unless-stopped
+    profiles: ["cluster"]
+    depends_on:
+      - ark-cluster-theisland
+    
+    ports:
+      - "27016:27016"
+      - "27016:27016/udp"
+      - "7777:7777"
+      - "7777:7777/udp"
+      - "7778:7778"
+      - "7778:7778/udp"
+      - "32331:32331"
+    
+    volumes:
+      - steam_data:/home/steam/.steam/steamapps
+      - ark_ragnarok:/ark
+      - ark_ragnarok_saved:/arkserver/ShooterGame/Saved
+      - ark_clusters:/arkserver/ShooterGame/Saved/clusters
+      - ark_server_shared:/arkserver
+    
+    environment:
+      - am_ark_SessionName=${ARK_SESSION_NAME:-ARK Cluster} - Ragnarok
+      - am_serverMap=Ragnarok
+      - am_ark_ServerAdminPassword=${ARK_ADMIN_PASSWORD:-k3yb04rdc4t}
+      - am_ark_ServerPassword=${ARK_SERVER_PASSWORD:-}
+      - am_ark_MaxPlayers=${ARK_MAX_PLAYERS:-10}
+      - am_ark_QueryPort=27016
+      - am_ark_Port=7780
+      - am_ark_RCONPort=32331
+      - am_arkAutoUpdateOnStart=false  # Ждет обновления от первого сервера
+      - am_arkwarnminutes=${ARK_WARN_MINUTES:-15}
+      - ARKCLUSTER=true
+      - am_arkopt_clusterid=${ARK_CLUSTER_ID:-MyGameCluster}
+      - ARKSERVER_SHARED=/arkserver
+      - am_ark_GameModIds=${ARK_GAME_MOD_IDS:-}
+      
+      # Игровые множители
+      - am_ark_XPMultiplier=${ARK_XP_MULTIPLIER:-1.0}
+      - am_ark_EnablePVEGamma=${ARK_ENABLE_PVE_GAMMA:-true}
+      - am_ark_EnablePVPGamma=${ARK_ENABLE_PVP_GAMMA:-true}
+      - am_ark_AllowCaveBuildingPvE=${ARK_ALLOW_CAVE_BUILDING_PVE:-true}
+      - am_ark_DifficultyOffset=${ARK_DIFFICULTY_OFFSET:-1}
+      - am_ark_NightTimeSpeedScale=${ARK_NIGHT_TIME_SPEED_SCALE:-1.0}
+      - am_ark_TamingSpeedMultiplier=${ARK_TAMING_SPEED_MULTIPLIER:-1.0}
+      - am_ark_HarvestAmountMultiplier=${ARK_HARVEST_AMOUNT_MULTIPLIER:-1.0}
+      - am_ark_MatingSpeedMultiplier=${ARK_MATING_SPEED_MULTIPLIER:-1.0}
+      - am_ark_EggHatchSpeedMultiplier=${ARK_EGG_HATCH_SPEED_MULTIPLIER:-1.0}
+      - am_ark_BabyMatureSpeedMultiplier=${ARK_BABY_MATURE_SPEED_MULTIPLIER:-1.0}
+      
+    deploy:
+      resources:
+        limits:
+          memory: ${DOCKER_MEMORY_LIMIT:-8g}
+          cpus: '${DOCKER_CPU_LIMIT:-4}'
+
+  # Третий сервер кластера - Extinction (опционально)
+  ark-cluster-extinction:
+    image: drpsychick/arkserver:latest
+    container_name: ark-cluster-extinction
+    restart: unless-stopped
+    profiles: ["cluster", "extended"]
+    depends_on:
+      - ark-cluster-theisland
+    
+    ports:
+      - "27017:27017"
+      - "27017:27017/udp"
+      - "7782:7782"
+      - "7782:7782/udp"
+      - "32332:32332"
+    
+    volumes:
+      - steam_data:/home/steam/.steam/steamapps
+      - ark_extinction:/ark
+      - ark_extinction_saved:/arkserver/ShooterGame/Saved
+      - ark_clusters:/arkserver/ShooterGame/Saved/clusters
+      - ark_server_shared:/arkserver
+    
+    environment:
+      - am_ark_SessionName=${ARK_SESSION_NAME:-ARK Cluster} - Extinction
+      - am_serverMap=Extinction
+      - am_ark_ServerAdminPassword=${ARK_ADMIN_PASSWORD:-k3yb04rdc4t}
+      - am_ark_ServerPassword=${ARK_SERVER_PASSWORD:-}
+      - am_ark_MaxPlayers=${ARK_MAX_PLAYERS:-10}
+      - am_ark_QueryPort=27017
+      - am_ark_Port=7782
+      - am_ark_RCONPort=32332
+      - am_arkAutoUpdateOnStart=false
+      - am_arkwarnminutes=${ARK_WARN_MINUTES:-15}
+      - ARKCLUSTER=true
+      - am_arkopt_clusterid=${ARK_CLUSTER_ID:-MyGameCluster}
+      - ARKSERVER_SHARED=/arkserver
+      - am_ark_GameModIds=${ARK_GAME_MOD_IDS:-}
+      
+      # Игровые множители
+      - am_ark_XPMultiplier=${ARK_XP_MULTIPLIER:-1.0}
+      - am_ark_EnablePVEGamma=${ARK_ENABLE_PVE_GAMMA:-true}
+      - am_ark_EnablePVPGamma=${ARK_ENABLE_PVP_GAMMA:-true}
+      - am_ark_AllowCaveBuildingPvE=${ARK_ALLOW_CAVE_BUILDING_PVE:-true}
+      - am_ark_DifficultyOffset=${ARK_DIFFICULTY_OFFSET:-1}
+      - am_ark_NightTimeSpeedScale=${ARK_NIGHT_TIME_SPEED_SCALE:-1.0}
+      - am_ark_TamingSpeedMultiplier=${ARK_TAMING_SPEED_MULTIPLIER:-1.0}
+      - am_ark_HarvestAmountMultiplier=${ARK_HARVEST_AMOUNT_MULTIPLIER:-1.0}
+      - am_ark_MatingSpeedMultiplier=${ARK_MATING_SPEED_MULTIPLIER:-1.0}
+      - am_ark_EggHatchSpeedMultiplier=${ARK_EGG_HATCH_SPEED_MULTIPLIER:-1.0}
+      - am_ark_BabyMatureSpeedMultiplier=${ARK_BABY_MATURE_SPEED_MULTIPLIER:-1.0}
+      
+    deploy:
+      resources:
+        limits:
+          memory: ${DOCKER_MEMORY_LIMIT:-8g}
+          cpus: '${DOCKER_CPU_LIMIT:-4}'
+
+volumes:
+  # Общие тома
+  steam_data:
+    driver: local
+    name: ark_steam_data
+  
+  # Для одиночного сервера
+  ark_server:
+    driver: local
+    name: ark_server_data
+  
+  # Для кластера
+  ark_theisland:
+    driver: local
+    name: ark_cluster_theisland
+  ark_ragnarok:
+    driver: local
+    name: ark_cluster_ragnarok
+  ark_extinction:
+    driver: local
+    name: ark_cluster_extinction
+  ark_theisland_saved:
+    driver: local
+    name: ark_cluster_theisland_saved
+  ark_ragnarok_saved:
+    driver: local
+    name: ark_cluster_ragnarok_saved
+  ark_extinction_saved:
+    driver: local
+    name: ark_cluster_extinction_saved
+  ark_clusters:
+    driver: local
+    name: ark_cluster_shared
+  ark_server_shared:
+    driver: local
+    name: ark_server_shared_binaries
+
+# Сеть для контейнеров (опционально)
+networks:
+  default:
+    name: ark-network
+    driver: bridge
